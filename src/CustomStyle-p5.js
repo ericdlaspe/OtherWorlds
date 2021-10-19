@@ -45,6 +45,51 @@ const CustomStyle = ({
   const { hash } = block;
 
 
+
+
+
+  // setup() initializes p5 and the canvas element, can be mostly ignored in our case (check draw())
+  const setup = (p5, canvasParentRef) => {
+    // Keep reference of canvas element for snapshots
+    p5.createCanvas(width, height).parent(canvasParentRef);
+    canvasRef.current = p5;
+
+    attributesRef.current = () => {
+      return {
+        // This is called when the final image is generated, when creator opens the Mint NFT modal.
+        // should return an object structured following opensea/enjin metadata spec for attributes/properties
+        // https://docs.opensea.io/docs/metadata-standards
+        // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1155.md#erc-1155-metadata-uri-json-schema
+
+        attributes: [
+          {
+            display_type: 'number',
+            trait_type: 'your trait here number',
+            value: hoistedValue.current, // using the hoisted value from within the draw() method, stored in the ref.
+          },
+
+          {
+            trait_type: 'your trait here text',
+            value: 'replace me',
+          },
+        ],
+      };
+    };
+
+  };
+
+
+  // draw() is called right after setup and in a loop
+  // disabling the loop prevents controls from working correctly
+  // code must be deterministic so every loop instance results in the same output
+
+  // Basic example of a drawing something using:
+  // a) the block hash as initial seed (shuffleBag)
+  // b) individual transactions in a block (seed)
+  // c) custom parameters creators can customize (mod1, color1)
+  // d) final drawing reacting to screen resizing (M)
+  const draw = (p5) => {
+
   // UTILITY /////////////////////////////////////////////////////////////////////
   function getHSLA(c) {
     return [p5.hue(c), p5.saturation(c), p5.lightness(c), p5.alpha(c)]
@@ -60,11 +105,11 @@ const CustomStyle = ({
     return false
   }
 
+
   // CLASSES /////////////////////////////////////////////////////////////////////
   class Palette {
     constructor(name, c0, c1, c2, c3, c4) {
-      this.colors = p5.shuffle([p5.color(c0), p5.color(c1), p5.color(c2), p5.color(c3),
-                              p5.color(c4)]);
+      this.colors = p5.shuffle([c0, c1, c2, c3, c4]);
       this.name = name;
       // Each object uses one of the major palette colors
       // which are shuffled per canvas
@@ -258,7 +303,7 @@ const CustomStyle = ({
       for (let y = this.topY; y <= this.bottomY; y++) {
         let inter = p5.map(y, this.topColorY, this.bottomColorY, 0, 1, true);
         p5.push();
-        p5.colorMode(RGB);
+        p5.colorMode(p5.RGB);
         const c = p5.lerpColor(this.topColor, this.bottomColor, inter);;
         p5.stroke(c);
         p5.line(0, y, WIDTH, y);
@@ -267,47 +312,6 @@ const CustomStyle = ({
     }
   }
 
-
-  // setup() initializes p5 and the canvas element, can be mostly ignored in our case (check draw())
-  const setup = (p5, canvasParentRef) => {
-    // Keep reference of canvas element for snapshots
-    p5.createCanvas(width, height).parent(canvasParentRef);
-    canvasRef.current = p5;
-
-    attributesRef.current = () => {
-      return {
-        // This is called when the final image is generated, when creator opens the Mint NFT modal.
-        // should return an object structured following opensea/enjin metadata spec for attributes/properties
-        // https://docs.opensea.io/docs/metadata-standards
-        // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1155.md#erc-1155-metadata-uri-json-schema
-
-        attributes: [
-          {
-            display_type: 'number',
-            trait_type: 'your trait here number',
-            value: hoistedValue.current, // using the hoisted value from within the draw() method, stored in the ref.
-          },
-
-          {
-            trait_type: 'your trait here text',
-            value: 'replace me',
-          },
-        ],
-      };
-    };
-  };
-
-
-  // draw() is called right after setup and in a loop
-  // disabling the loop prevents controls from working correctly
-  // code must be deterministic so every loop instance results in the same output
-
-  // Basic example of a drawing something using:
-  // a) the block hash as initial seed (shuffleBag)
-  // b) individual transactions in a block (seed)
-  // c) custom parameters creators can customize (mod1, color1)
-  // d) final drawing reacting to screen resizing (M)
-  const draw = (p5) => {
 
     ////////////////////////////////////////////////////////////////////////////////
     // MAIN ////////////////////////////////////////////////////////////////////////
@@ -320,6 +324,7 @@ const CustomStyle = ({
     p5.background(background);
 
     // reset shuffle bag
+    const { hash } = block;
     let seed = parseInt(hash.slice(0, 16), 16);
     shuffleBag.current = new MersenneTwister(seed);
     // let objs = block.transactions.map((t) => {
@@ -341,8 +346,7 @@ const CustomStyle = ({
     // Map the ground height percentage to a value from
     // the top (0) to the bottom (HEIGHT) of the canvas
     const groundHeightPct = 0.15;
-    const groundTopY = map(groundHeightPct, 0, 1, HEIGHT, 0);
-    const horizonS = HEIGHT * 0.2;
+    const groundTopY = p5.map(groundHeightPct, 0, 1, HEIGHT, 0);
 
     const p5Seed = shuffleBag.current.random()
     console.log("p5 seed: " + p5Seed);
@@ -358,33 +362,33 @@ const CustomStyle = ({
       // Genesis - {"Dark Sky Blue":"96bcc7","Dark Slate Gray":"2a4e57",
       // "Dark Salmon":"f1a287","Liver Organ":"763621","Old Lavender":"7a6174"}
       new Palette('Genesis',
-                  '#96bcc7', '#2a4e57', '#f1a287', '#763621', '#7a6174'),
+                  p5.color('#96bcc7'), p5.color('#2a4e57'), p5.color('#f1a287'), p5.color('#763621'), p5.color('#7a6174')),
       // Neon Quadratic - bright blue to bright pink
       // LOVE
       new Palette('Neon Quadratic',
-                  '#256dfa', '#8753fc', '#b333f2', '#cb16d9', '#d716b5'),
+                  p5.color('#256dfa'), p5.color('#8753fc'), p5.color('#b333f2'), p5.color('#cb16d9'), p5.color('#d716b5')),
       // Blue to Orange Segmented - from b/L space
       // LIKE
       new Palette('Blue to Orange Segmented',
-                  '#06008a', '#6e1374', '#a2305b', '#cf4e3e', '#fa6d01'),
+                  p5.color('#06008a'), p5.color('#6e1374'), p5.color('#a2305b'), p5.color('#cf4e3e'), p5.color('#fa6d01')),
       // Dusty Dusk Quadratic - toned colors from c/H space -
       // pink, orange-yellow, green, blue, purple
       // LIKE
       new Palette('Dusty Dusk Quadratic',
-                  '#aa6173', '#827561', '#6f7973', '#627a86', '#866d99'),
+                  p5.color('#aa6173'), p5.color('#827561'), p5.color('#6f7973'), p5.color('#627a86'), p5.color('#866d99')),
       // Orange is the New Black - oranges toned to black from c/L space
       // LOVE
       new Palette('Orange is the New Black',
-                  '#0f0907', '#6a574f', '#b6816a', '#e98658', '#f65a03'),
+                  p5.color('#0f0907'), p5.color('#6a574f'), p5.color('#b6816a'), p5.color('#e98658'), p5.color('#f65a03')),
       // Greens of Blue and Yellow Polygon - from H/L space
       // OK, but the brightest "emerald" green is a bit garish (needs tint?)
       new Palette('Greens of Blue and Yellow Polygon',
-                  '#025450', '#03250b', '#697049', '#c3e2bc', '#8ecfc5'),
+                  p5.color('#025450'), p5.color('#03250b'), p5.color('#697049'), p5.color('#c3e2bc'), p5.color('#8ecfc5')),
       // Pastel Segment - pale colors from H/L space -
       // pink, yellow-orange, green, blue, purple
       // LOVE
       new Palette('Pastel Segment',
-                  '#fcc2d1', '#efcfaa', '#b5debd', '#9adef0', '#d5cffa'),
+                  p5.color('#fcc2d1'), p5.color('#efcfaa'), p5.color('#b5debd'), p5.color('#9adef0'), p5.color('#d5cffa')),
       // // Darkness Quadratic - dark colors from a/b space -
       // // green, brown, red, violet, purple
       // // DISLIKE
@@ -392,25 +396,29 @@ const CustomStyle = ({
       //             '#0b2204', '#2b1903', '#3a0d16', '#3e012e', '#2c0255'),
     ];
 
-    palette = p5.random(palettes);
-    console.log('palette: ' + palette.name);
+    const paletteIdx = Math.floor(p5.random(palettes.length) + mod2 * 10) % palettes.length
+    console.log("paletteIdx: " + paletteIdx)
+    const palette = palettes[paletteIdx];
+    console.log("palette: " + palette.name);
 
     // Switch to HSL to ease color manipulation
     // Toggling this to RGB can create some interesting effects.
     // Play with that a bit. Maybe it's a good day/night transition?
-    p5.colorMode(HSL);
+    p5.colorMode(p5.HSL);
 
     //// GROUND ////
     let groundH = p5.hue(palette.ground);
     let groundS = p5.saturation(palette.ground);
     let groundL = p5.lightness(palette.ground);
     // let groundC = color(groundH, min(30, groundS), random(groundL, 80));
-    let groundC = color(groundH, horizonS, groundL);
+    // Color saturation at horizon
+    const horizonS = 20
+    let groundC = p5.color(groundH, horizonS, groundL);
     // Ground gets lighter in fore - anywhere from original to 80% absolute lightness
     // We also make the foreground less saturated
-    let groundCBottom = color(groundH, horizonS + 20, groundL);
-    ground = new BackgroundGradient(groundTopY, HEIGHT, groundC, groundCBottom,
-                                    groundTopY + 10, HEIGHT - 20);
+    // let groundCBottom = p5.color(groundH, horizonS + 20, groundL);
+    const ground = new BackgroundGradient(groundTopY, HEIGHT, groundC, groundC,
+                                          groundTopY + 10, HEIGHT - 20);
 
     //// SUN ////
     // Random height for the sun:  horizon to top of canvas
@@ -419,21 +427,20 @@ const CustomStyle = ({
     const sunD = p5.random(WIDTH * 0.5, WIDTH);
     const sunY = p5.random(groundTopY - sunD * 0.4, groundTopY);
     const sunX = p5.random(WIDTH);
-    let sunC = color(sunH, max(sunS, 85), 85);
-    sun = new CelestialBody(sunX, sunY, sunD, sunC);
+    let sunC = p5.color(sunH, Math.max(sunS, 85), 85);
+    const sun = new CelestialBody(sunX, sunY, sunD, sunC);
 
     //// SKY ////
     const [skyH, skyS, skyL] = getHSLA(palette.sky)
     let skyBottomY = groundTopY - 1;
     // Fade from sky color at top to sun color at horizon
     // Sky bottom color is modified to be slightly darker than the sun
-    const skyColorBottom = color(p5.hue(sunC), 100, lightness(sunC) - 5);
-    console.log('skyColorBottomL', lightness(skyColorBottom))
-    sky = new BackgroundGradient(0, skyBottomY, palette.sky, skyColorBottom,
-                                  0, sunY);
+    const skyColorBottom = p5.color(p5.hue(sunC), 100, p5.lightness(sunC) - 5);
+    const sky = new BackgroundGradient(0, skyBottomY, palette.sky, skyColorBottom,
+                                       0, sunY);
 
     //// MOONS ////
-    let nMoons = p5.random(3);
+    let nMoons = mod1 * 10 / 3;
     let moons = [];
     let [moonH, moonS, moonL] = getHSLA(palette.moon)
 
@@ -454,7 +461,7 @@ const CustomStyle = ({
     // const ringL = max(skyColorBottomL, sunL);
     // let ringColor = color(sunH, sunS, ringL);
     let ringColor = p5.color(sunH, skyS, sunL);
-    const ringSpread = 60
+    const ringSpread = 60 * 2 * mod1
     // Bottom/left coordinates to top/right coordinates
     const rings = new RingGroup(Math.floor(p5.random(-WIDTH * 0.1, WIDTH)),
                                 Math.floor(HEIGHT * 1.1),
@@ -466,8 +473,8 @@ const CustomStyle = ({
     //// MOUNTAINS ////
     const [mtnH, mtnS, mtnL] = getHSLA(palette.mountain);
     const mtnC = p5.color(mtnH,
-                        horizonS,
-                        mtnL);
+                          horizonS,
+                          mtnL);
     const mtnXPos = 0;
     const mtnXMax = WIDTH;
     const mtnXRes = p5.random(10, 30);
@@ -480,10 +487,10 @@ const CustomStyle = ({
     let mtnYPos = sky.bottomY - HEIGHT * (0.01 * (mtnSlope ** 2) + 0.10);
 
     // XXX: Make mountains approach lightness (& color?) of sky closer to background
-    mountain1 = new Mountain(ground.topY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
-                              mtnNoiseXOffset, mtnNoiseScale,
-                              mtnHeightScale, mtnTightness, mtnSlope,
-                              mtnC);
+    const mountain1 = new Mountain(ground.topY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
+                                   mtnNoiseXOffset, mtnNoiseScale,
+                                   mtnHeightScale, mtnTightness, mtnSlope,
+                                   mtnC);
     // mountain2 = new Mountain(mtnXPos, sky.bottomY - HEIGHT * random(0.2, 0.4),
     //                          WIDTH, 15, 1, 0.01, 100, 0.2,
     //                          mountain2Color);
