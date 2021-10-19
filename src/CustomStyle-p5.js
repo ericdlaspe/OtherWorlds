@@ -44,6 +44,230 @@ const CustomStyle = ({
 
   const { hash } = block;
 
+
+  // UTILITY /////////////////////////////////////////////////////////////////////
+  function getHSLA(c) {
+    return [p5.hue(c), p5.saturation(c), p5.lightness(c), p5.alpha(c)]
+  }
+
+  function getRGBA(c) {
+    return [p5.red(c), p5.green(c), p5.blue(c), p5.alpha(c)]
+  }
+
+  function circlesCollide(x1, y1, d1, x2, y2, d2) {
+    if (p5.dist(x1, y1, x2, y2) < (d1 / 2 + d2 / 2))
+      return true
+    return false
+  }
+
+  // CLASSES /////////////////////////////////////////////////////////////////////
+  class Palette {
+    constructor(name, c0, c1, c2, c3, c4) {
+      this.colors = p5.shuffle([p5.color(c0), p5.color(c1), p5.color(c2), p5.color(c3),
+                              p5.color(c4)]);
+      this.name = name;
+      // Each object uses one of the major palette colors
+      // which are shuffled per canvas
+      this.sky = this.colors[0];
+      this.ground = this.colors[1];
+      this.sun = this.colors[2];
+      this.mountain = this.colors[3];
+      this.moon = this.colors[4];
+    }
+
+    random() {
+      return p5.random(this.colors);
+    }
+  }
+
+  class Ring {
+    constructor(x1, y1, x2, y2, width, c) {
+      this.x1 = x1;
+      this.y1 = y1;
+      this.x2 = x2;
+      this.y2 = y2;
+      // Int
+      this.width = width;
+      this.c = c;
+    }
+
+    draw() {
+      p5.push();
+      p5.noFill();
+      p5.stroke(this.c);
+      for (let xOff = 0; xOff < this.width; xOff++)
+        p5.line(this.x1 + xOff, this.y1, this.x2 + xOff, this.y2);
+      p5.pop();
+    }
+  }
+
+  class RingGroup {
+    constructor(x1, y1, x2, y2, c, spread) {
+      this.x1 = x1;
+      this.y1 = y1;
+      this.x2 = x2;
+      this.y2 = y2;
+      this.c = c;
+      this.spread = spread;
+
+      // Constrain positions to ensure rings overlap the viewing window
+      const randomXAdjustment = p5.random(WIDTH, WIDTH * 1.5);
+
+      while (this.x1 < 0 && this.x2 < 0)
+      this.x2 += randomXAdjustment;
+
+      while (this.x1 > WIDTH && this.x2 > WIDTH)
+      this.x2 -= randomXAdjustment;
+
+      this.shapes = [];
+
+      // Width of entire ring group =  WIDTH * {w | 0.01 < w <= 1}
+      // let groupWidth = random(WIDTH * 0.01, WIDTH * 0.7);
+      let nRings = Math.floor(p5.random(5, this.spread * 0.8));
+
+      // Draw lines or rectangles from x1, y1 to x2, y2, plus some x offset
+      for (let n = 0; n < nRings; n++) {
+        let [ringH, ringS, ringL] = getHSLA(this.c)
+        let ringColor = p5.color(ringH, ringS, p5.random(ringL, 100), p5.random(0.1, 0.2));
+        let xOff = Math.floor(p5.randomGaussian(0, spread));
+        let ring = new Ring(this.x1 + xOff,
+          this.y1,
+          this.x2 + xOff,
+          this.y2,
+          Math.floor(Math.abs(p5.randomGaussian(1, 30))),
+          ringColor);
+          this.shapes.push(ring);
+        }
+      }
+
+      draw() {
+        this.shapes.forEach(ring => {
+          ring.draw();
+        })
+      }
+  }
+
+  class Mountain {
+    // xPos, yPos (baseline, aligned with horizon),
+    // xMax (x-axis extent of mountain range),
+    // xRes (num pixels between vertices along x-axis),
+    // noiseXOffset (offset for getting different output from Perlin noise
+    //    function - otherwise, subsequent calls will create the same shape - adds
+    //    the specified multiple of canvas width),
+    // noiseScale ("chaos" - try 0.01-0.05 for a start),
+    // heightScale (peak-to-valley height scaler, in pixels),
+    // tightness (curveVertex value -5.0-5.0),
+    // c (color)
+    constructor(horizon, xPos, yPos, xMax = WIDTH, xRes = 15, noiseXOffset = 0,
+      noiseScale = 0.02, heightScale = 100, tightness = 0.0, slope = 0,
+      c = p5.color('white')) {
+        this.xPos = xPos - xRes;
+        this.yPos = yPos;
+        this.xMax = xMax;
+        this.xRes = xRes;
+        this.noiseXOffset = noiseXOffset;
+        this.noiseScale = noiseScale;
+        this.heightScale = heightScale;
+        this.tightness = tightness;
+        this.slope = slope;
+        this.color = c;
+
+        this.vertices = [];
+
+        let y = 0;
+
+        for (let i = 0, x = this.xPos; x < xMax + 2 * xRes; i++, x += xRes) {
+          y = p5.noise(noiseXOffset * WIDTH + x * this.noiseScale) *
+          this.heightScale +
+          i * slope;
+
+          // Constrain the mountains to above the horizon
+          if (y > horizon - yPos)
+          y = horizon - yPos;
+
+          this.vertices.push(p5.createVector(x, y));
+        }
+
+        // Adjust the starting height of the mountains if they slope upward, since
+        // they are drawn left-to-right
+        if (this.slope < 0) {
+          this.yPos -= y;
+        }
+      }
+
+      draw() {
+        p5.push();
+        p5.noStroke();
+        p5.fill(this.color)
+
+        p5.curveTightness(this.tightness);
+        p5.translate(this.xPos, this.yPos);
+        p5.beginShape();
+        // Repeat first vertex
+        p5.curveVertex(this.vertices[0].x, this.vertices[0].y);
+        let i = 0;
+        let x = 0, y = 0;
+        for (i = 0; i < this.vertices.length; i++) {
+          x = this.vertices[i].x;
+          y = this.vertices[i].y;
+          p5.curveVertex(x, y);
+        }
+        // Repeat final vertex
+        p5.curveVertex(x, y);
+        p5.vertex(x, y + HEIGHT);
+        p5.vertex(this.vertices[0].x, y + HEIGHT)
+        p5.vertex(this.vertices[0].x, this.vertices[0].y)
+        p5.vertex(this.vertices[0].x, this.vertices[0].y)
+        p5.endShape();
+        p5.pop();
+      }
+  }
+
+  class CelestialBody {
+    // x center, y center, diameter, color
+    constructor(x, y, d, c) {
+      this.x = x;
+      this.y = y;
+      this.diameter = d;
+      this.color = c;
+    }
+
+    draw() {
+      p5.noStroke();
+      p5.fill(this.color);
+      p5.circle(this.x, this.y, this.diameter);
+    }
+  }
+
+  class BackgroundGradient {
+    // height percent of canvas, color at top, color at bottom
+    constructor(topY, bottomY, topColor, bottomColor, topColorY, bottomColorY) {
+      this.topY = topY;
+      this.bottomY = bottomY;
+      this.topColor = topColor;
+      this.bottomColor = bottomColor;
+      // topColorY and bottomColorY are the ends of the gradient, beyond which
+      // the color will be solid (topColor or bottomColor, respectively)
+      this.topColorY = topColorY;
+      this.bottomColorY = bottomColorY;
+      // this.style = style;
+    }
+
+    draw() {
+      // Top to bottom gradient
+      for (let y = this.topY; y <= this.bottomY; y++) {
+        let inter = p5.map(y, this.topColorY, this.bottomColorY, 0, 1, true);
+        p5.push();
+        p5.colorMode(RGB);
+        const c = p5.lerpColor(this.topColor, this.bottomColor, inter);;
+        p5.stroke(c);
+        p5.line(0, y, WIDTH, y);
+        p5.pop();
+      }
+    }
+  }
+
+
   // setup() initializes p5 and the canvas element, can be mostly ignored in our case (check draw())
   const setup = (p5, canvasParentRef) => {
     // Keep reference of canvas element for snapshots
@@ -73,6 +297,7 @@ const CustomStyle = ({
     };
   };
 
+
   // draw() is called right after setup and in a loop
   // disabling the loop prevents controls from working correctly
   // code must be deterministic so every loop instance results in the same output
@@ -83,37 +308,202 @@ const CustomStyle = ({
   // c) custom parameters creators can customize (mod1, color1)
   // d) final drawing reacting to screen resizing (M)
   const draw = (p5) => {
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // MAIN ////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
     let WIDTH = width;
     let HEIGHT = height;
-    let DIM = Math.min(WIDTH, HEIGHT);
-    let M = DIM / DEFAULT_SIZE;
+    // let DIM = Math.min(WIDTH, HEIGHT);
+    // let M = DIM / DEFAULT_SIZE;
 
     p5.background(background);
 
     // reset shuffle bag
     let seed = parseInt(hash.slice(0, 16), 16);
     shuffleBag.current = new MersenneTwister(seed);
-    let objs = block.transactions.map((t) => {
-      let seed = parseInt(t.hash.slice(0, 16), 16);
-      return {
-        y: shuffleBag.current.random(),
-        x: shuffleBag.current.random(),
-        radius: seed / 1000000000000000,
-      };
-    });
+    // let objs = block.transactions.map((t) => {
+    //   let seed = parseInt(t.hash.slice(0, 16), 16);
+    //   return {
+    //     y: shuffleBag.current.random(),
+    //     x: shuffleBag.current.random(),
+    //     radius: seed / 1000000000000000,
+    //   };
+    // });
 
     // example assignment of hoisted value to be used as NFT attribute later
     hoistedValue.current = 42;
 
-    objs.forEach((dot, i) => {
-      p5.stroke(color1);
-      p5.strokeWeight(1 + mod2 * 10);
-      p5.ellipse(
-        200 * dot.y * 6 * M,
-        100 * dot.x * 6 * M,
-        dot.radius * M * mod1
-      );
+
+
+
+
+    // Map the ground height percentage to a value from
+    // the top (0) to the bottom (HEIGHT) of the canvas
+    const groundHeightPct = 0.15;
+    const groundTopY = map(groundHeightPct, 0, 1, HEIGHT, 0);
+    const horizonS = HEIGHT * 0.2;
+
+    const p5Seed = shuffleBag.current.random()
+    console.log("p5 seed: " + p5Seed);
+
+    // Set the global random seed that determines everything
+    p5.randomSeed(p5Seed);
+    p5.noiseSeed(p5Seed);
+    p5.random();
+
+    //// COLOR PALETTE ////
+    // Generate or choose a color palette
+    const palettes = [
+      // Genesis - {"Dark Sky Blue":"96bcc7","Dark Slate Gray":"2a4e57",
+      // "Dark Salmon":"f1a287","Liver Organ":"763621","Old Lavender":"7a6174"}
+      new Palette('Genesis',
+                  '#96bcc7', '#2a4e57', '#f1a287', '#763621', '#7a6174'),
+      // Neon Quadratic - bright blue to bright pink
+      // LOVE
+      new Palette('Neon Quadratic',
+                  '#256dfa', '#8753fc', '#b333f2', '#cb16d9', '#d716b5'),
+      // Blue to Orange Segmented - from b/L space
+      // LIKE
+      new Palette('Blue to Orange Segmented',
+                  '#06008a', '#6e1374', '#a2305b', '#cf4e3e', '#fa6d01'),
+      // Dusty Dusk Quadratic - toned colors from c/H space -
+      // pink, orange-yellow, green, blue, purple
+      // LIKE
+      new Palette('Dusty Dusk Quadratic',
+                  '#aa6173', '#827561', '#6f7973', '#627a86', '#866d99'),
+      // Orange is the New Black - oranges toned to black from c/L space
+      // LOVE
+      new Palette('Orange is the New Black',
+                  '#0f0907', '#6a574f', '#b6816a', '#e98658', '#f65a03'),
+      // Greens of Blue and Yellow Polygon - from H/L space
+      // OK, but the brightest "emerald" green is a bit garish (needs tint?)
+      new Palette('Greens of Blue and Yellow Polygon',
+                  '#025450', '#03250b', '#697049', '#c3e2bc', '#8ecfc5'),
+      // Pastel Segment - pale colors from H/L space -
+      // pink, yellow-orange, green, blue, purple
+      // LOVE
+      new Palette('Pastel Segment',
+                  '#fcc2d1', '#efcfaa', '#b5debd', '#9adef0', '#d5cffa'),
+      // // Darkness Quadratic - dark colors from a/b space -
+      // // green, brown, red, violet, purple
+      // // DISLIKE
+      // new Palette('Darkness Quadratic',
+      //             '#0b2204', '#2b1903', '#3a0d16', '#3e012e', '#2c0255'),
+    ];
+
+    palette = p5.random(palettes);
+    console.log('palette: ' + palette.name);
+
+    // Switch to HSL to ease color manipulation
+    // Toggling this to RGB can create some interesting effects.
+    // Play with that a bit. Maybe it's a good day/night transition?
+    p5.colorMode(HSL);
+
+    //// GROUND ////
+    let groundH = p5.hue(palette.ground);
+    let groundS = p5.saturation(palette.ground);
+    let groundL = p5.lightness(palette.ground);
+    // let groundC = color(groundH, min(30, groundS), random(groundL, 80));
+    let groundC = color(groundH, horizonS, groundL);
+    // Ground gets lighter in fore - anywhere from original to 80% absolute lightness
+    // We also make the foreground less saturated
+    let groundCBottom = color(groundH, horizonS + 20, groundL);
+    ground = new BackgroundGradient(groundTopY, HEIGHT, groundC, groundCBottom,
+                                    groundTopY + 10, HEIGHT - 20);
+
+    //// SUN ////
+    // Random height for the sun:  horizon to top of canvas
+    // Sun position depends on ground height
+    const [sunH, sunS, sunL] = getHSLA(palette.sun)
+    const sunD = p5.random(WIDTH * 0.5, WIDTH);
+    const sunY = p5.random(groundTopY - sunD * 0.4, groundTopY);
+    const sunX = p5.random(WIDTH);
+    let sunC = color(sunH, max(sunS, 85), 85);
+    sun = new CelestialBody(sunX, sunY, sunD, sunC);
+
+    //// SKY ////
+    const [skyH, skyS, skyL] = getHSLA(palette.sky)
+    let skyBottomY = groundTopY - 1;
+    // Fade from sky color at top to sun color at horizon
+    // Sky bottom color is modified to be slightly darker than the sun
+    const skyColorBottom = color(p5.hue(sunC), 100, lightness(sunC) - 5);
+    console.log('skyColorBottomL', lightness(skyColorBottom))
+    sky = new BackgroundGradient(0, skyBottomY, palette.sky, skyColorBottom,
+                                  0, sunY);
+
+    //// MOONS ////
+    let nMoons = p5.random(3);
+    let moons = [];
+    let [moonH, moonS, moonL] = getHSLA(palette.moon)
+
+    for (let i = 0; i < nMoons; i++) {
+      let moonY = p5.random(groundTopY);
+      let moonX = p5.random(WIDTH);
+      let moonD = p5.random(WIDTH * 0.02, WIDTH * 0.20);
+      moonL = p5.random(70, moonL)
+      if (circlesCollide(moonX, moonY, moonD, sunX, sunY, sunD))
+        moonL = 18
+      let moonC = p5.color(moonH, Math.min(moonS, 50), moonL);
+
+      moons.push(new CelestialBody(moonX, moonY, moonD, moonC));
+    }
+
+    //// RINGS ////
+    // const skyColorBottomL = lightness(skyColorBottom);
+    // const ringL = max(skyColorBottomL, sunL);
+    // let ringColor = color(sunH, sunS, ringL);
+    let ringColor = p5.color(sunH, skyS, sunL);
+    const ringSpread = 60
+    // Bottom/left coordinates to top/right coordinates
+    const rings = new RingGroup(Math.floor(p5.random(-WIDTH * 0.1, WIDTH)),
+                                Math.floor(HEIGHT * 1.1),
+                                Math.floor(p5.random(0, WIDTH * 1.1)),
+                                Math.floor(-HEIGHT * 0.1),
+                                ringColor,
+                                ringSpread);
+
+    //// MOUNTAINS ////
+    const [mtnH, mtnS, mtnL] = getHSLA(palette.mountain);
+    const mtnC = p5.color(mtnH,
+                        horizonS,
+                        mtnL);
+    const mtnXPos = 0;
+    const mtnXMax = WIDTH;
+    const mtnXRes = p5.random(10, 30);
+    const mtnNoiseXOffset = 0
+    const mtnHeightScale = p5.random(50, 100);
+    const mtnNoiseScale = p5.random(0.01, 0.03);
+    const mtnTightness = 0.1;
+
+    let mtnSlope = p5.random(-3, 3);
+    let mtnYPos = sky.bottomY - HEIGHT * (0.01 * (mtnSlope ** 2) + 0.10);
+
+    // XXX: Make mountains approach lightness (& color?) of sky closer to background
+    mountain1 = new Mountain(ground.topY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
+                              mtnNoiseXOffset, mtnNoiseScale,
+                              mtnHeightScale, mtnTightness, mtnSlope,
+                              mtnC);
+    // mountain2 = new Mountain(mtnXPos, sky.bottomY - HEIGHT * random(0.2, 0.4),
+    //                          WIDTH, 15, 1, 0.01, 100, 0.2,
+    //                          mountain2Color);
+    // mountain3 = new Mountain(mtnXPos, sky.bottomY - HEIGHT * random(0.3, 0.4),
+    //                          WIDTH, 15, 2, 0.01, 100, 0.2,
+    //                          mountain3Color);
+
+    //// DRAW //////////////////////////////////////////////////////////////////
+    // The background is the color of the sky
+    p5.background(palette.sky);
+    sky.draw();
+    sun.draw();
+
+    moons.forEach(moon => {
+      moon.draw()
     });
+
+    rings.draw();
+    mountain1.draw();
+    ground.draw();
   };
 
   return <Sketch setup={setup} draw={draw} windowResized={handleResize} />;
@@ -122,14 +512,14 @@ const CustomStyle = ({
 export default CustomStyle;
 
 const styleMetadata = {
-  name: '',
-  description: '',
+  name: 'Other Worlds\' Starsets',
+  description: 'The mountains, moons, rings, and atmospheres of distant and undiscovered planets at the setting of their closest stars... are brought into view here on the Ethereum blockchain.',
   image: '',
-  creator_name: '',
+  creator_name: 'Oneironaut',
   options: {
     mod1: 0.4,
     mod2: 0.1,
-    color1: '#fff000',
+    color1: '#0011FF',
     background: '#000000',
   },
 };
