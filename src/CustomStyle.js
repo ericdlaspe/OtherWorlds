@@ -45,6 +45,38 @@ const CustomStyle = ({
 
   const { hash } = block;
 
+  const Erc20Prefixes = new Set(["0xa9059cbb", "0x23b872dd", "0x18160ddd", "0x70a08231", "0xdd62ed3e", "0x095ea7b3"])
+  const NFTPrefixes = new Set(["0x1249c58b", "0x672a9400", "0x40c10f19", "0x449a52f8", "0xa140ae23"])
+  const NFTMarketAddrs = new Set(["0xaa84f7c9164db5c11b9fa65ad0118977c12a4729",
+                                  "0xb80fbf6cdb49c33dc6ae4ca11af8ac47b0b4c0f3",
+                                  "0x495f947276749ce646f68ac8c248420045cb7b5e",
+                                  "0x60f80121c31a0d46b5279700f9df786054aa5ee5",
+                                  "0x3b3ee1931dc30c1957379fac9aba94d1c48a5405",
+                                  "0x2a46f2ffd99e19a89476e2f62270e0a35bbf0756",
+                                  "0xfbeef911dc5821886e1dda71586d90ed28174b7d",
+                                  "0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270",
+                                  "0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0",
+                                  "0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb",
+                                  "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+                                  "0x06012c8cf97bead5deae237070f9587f8e7a266d",
+                                  "0xf5b0a3efb8e8e4c201e2a935f110eaaf3ffecb8d"])
+
+  const gasLimit = Number.parseInt(block.gasLimit.hex, 16)
+  const gasUsed = Number.parseInt(block.gasUsed.hex, 16)
+
+  const ringArr = []
+  let txnValueMax = 0
+  block.transactions.forEach(txn => {
+    let txnValue = Number.parseInt(txn.value.hex, 16)
+    let txnDataHex = txn.data.slice(0, 10)
+    let txnTo = txn.to.toLowerCase()
+    if (txnValue > 0) {
+      ringArr.push([txnValue, txnDataHex, txnTo])
+    }
+    if (txnValue > txnValueMax) {
+      txnValueMax = txnValue
+    }
+  })
 
   // setup() initializes p5 and the canvas element, can be mostly ignored in our case (check draw())
   const setup = (p5, canvasParentRef) => {
@@ -88,252 +120,271 @@ const CustomStyle = ({
   // d) final drawing reacting to screen resizing (M)
   const draw = (p5) => {
 
-  let WIDTH = width;
-  let HEIGHT = height;
-  // let DIM = Math.min(WIDTH, HEIGHT);
-  // let M = DIM / DEFAULT_SIZE;
+    let WIDTH = width;
+    let HEIGHT = height;
 
-  // reset shuffle bag
-  let seed = parseInt(hash.slice(0, 16), 16);
-  shuffleBag.current = new MersenneTwister(seed);
-  // let objs = block.transactions.map((t) => {
-  //   let seed = parseInt(t.hash.slice(0, 16), 16);
-  //   return {
-  //     y: shuffleBag.current.random(),
-  //     x: shuffleBag.current.random(),
-  //     radius: seed / 1000000000000000,
-  //   };
-  // });
+    // reset shuffle bag
+    let seed = parseInt(hash.slice(0, 16), 16);
+    shuffleBag.current = new MersenneTwister(seed);
 
-  // example assignment of hoisted value to be used as NFT attribute later
-  hoistedValue.current = 42;
-
-  // UTILITY /////////////////////////////////////////////////////////////////////
-  function getHSLA(c) {
-    return [p5.hue(c), p5.saturation(c), p5.lightness(c), p5.alpha(c)]
-  }
-
-  function getRGBA(c) {
-    return [p5.red(c), p5.green(c), p5.blue(c), p5.alpha(c)]
-  }
-
-  function circlesCollide(x1, y1, d1, x2, y2, d2) {
-    if (p5.dist(x1, y1, x2, y2) < (d1 / 2 + d2 / 2))
-      return true
-    return false
-  }
+    // example assignment of hoisted value to be used as NFT attribute later
+    hoistedValue.current = 42;
 
 
-  // CLASSES /////////////////////////////////////////////////////////////////////
-  class Palette {
-    constructor(name, c0, c1, c2, c3, c4) {
-      this.colors = p5.shuffle([c0, c1, c2, c3, c4]);
-      this.name = name;
-      // Each object uses one of the major palette colors
-      // which are shuffled per canvas
-      this.sky = this.colors[0];
-      this.ground = this.colors[1];
-      this.sun = this.colors[2];
-      this.mountain = this.colors[3];
-      this.moon = this.colors[4];
+    // UTILITY /////////////////////////////////////////////////////////////////////
+    function getHSLA(c) {
+      return [p5.hue(c), p5.saturation(c), p5.lightness(c), p5.alpha(c)]
     }
 
-    random() {
-      return p5.random(this.colors);
-    }
-  }
-
-  class Ring {
-    constructor(x1, y1, x2, y2, width, c) {
-      this.x1 = x1;
-      this.y1 = y1;
-      this.x2 = x2;
-      this.y2 = y2;
-      // Int
-      this.width = width;
-      this.c = c;
+    function circlesCollide(x1, y1, d1, x2, y2, d2) {
+      if (p5.dist(x1, y1, x2, y2) < (d1 / 2 + d2 / 2))
+        return true
+      return false
     }
 
-    draw() {
-      p5.push();
-      p5.noFill();
-      p5.stroke(this.c);
-      for (let xOff = 0; xOff < this.width; xOff++)
-        p5.line(this.x1 + xOff, this.y1, this.x2 + xOff, this.y2);
-      p5.pop();
+    // Takes the first 4 bytes of transaction's data (the "signature")
+    // and determines if it contains an ERC-20 contract
+    function isTransactionERC20(txnDataPrefix) {
+      return Erc20Prefixes.has(txnDataPrefix)
     }
-  }
 
-  class RingGroup {
-    constructor(x1, y1, x2, y2, c, n, spread) {
-      this.x1 = x1;
-      this.y1 = y1;
-      this.x2 = x2;
-      this.y2 = y2;
-      this.c = c;
-      this.n = n;
-      this.spread = spread;
+    // Takes the first 4 bytes of transaction's data (the "signature")
+    // and the "to address" to determine if it contains an NFT
+    function isTransactionNFT(txnDataPrefix, txnTo) {
+      return (NFTPrefixes.has(txnDataPrefix) || NFTMarketAddrs.has(txnTo))
+    }
 
-      // Constrain positions to ensure rings overlap the viewing window
-      let randomXAdjustment = p5.random(WIDTH, WIDTH * 1.5);
 
-      while (this.x1 < 0 && this.x2 < 0)
-      this.x2 += randomXAdjustment;
-
-      while (this.x1 > WIDTH && this.x2 > WIDTH)
-      this.x2 -= randomXAdjustment;
-
-      this.shapes = [];
-
-      // Draw lines or rectangles from x1, y1 to x2, y2, plus some x offset
-      for (let n = 0; n < this.n; n++) {
-        let [ringH, ringS, ringL] = getHSLA(this.c)
-        let ringColor = p5.color(ringH, ringS, p5.random(ringL, 100), p5.random(0.1, 0.2));
-        let xOff = Math.floor(p5.randomGaussian(0, spread));
-        let ring = new Ring(this.x1 + xOff,
-          this.y1,
-          this.x2 + xOff,
-          this.y2,
-          Math.floor(Math.abs(p5.randomGaussian(1, 30))),
-          ringColor);
-          this.shapes.push(ring);
-        }
+    // CLASSES /////////////////////////////////////////////////////////////////////
+    class Palette {
+      constructor(name, c0, c1, c2, c3, c4) {
+        this.colors = p5.shuffle([c0, c1, c2, c3, c4]);
+        this.name = name;
+        // Each object uses one of the major palette colors
+        // which are shuffled per canvas
+        this.sky = this.colors[0];
+        this.ground = this.colors[1];
+        this.sun = this.colors[2];
+        this.mountain = this.colors[3];
+        this.moon = this.colors[4];
       }
 
-      draw() {
-        this.shapes.forEach(ring => {
-          ring.draw();
-        })
+      random() {
+        return p5.random(this.colors);
       }
-  }
+    }
 
-  class Mountain {
-    // xPos, yPos (baseline, aligned with horizon),
-    // xMax (x-axis extent of mountain range),
-    // xRes (num pixels between vertices along x-axis),
-    // noiseXOffset (offset for getting different output from Perlin noise
-    //    function - otherwise, subsequent calls will create the same shape - adds
-    //    the specified multiple of canvas width),
-    // noiseScale ("chaos" - try 0.01-0.05 for a start),
-    // heightScale (peak-to-valley height scaler, in pixels),
-    // tightness (curveVertex value -5.0-5.0),
-    // c (color)
-    constructor(horizon, xPos, yPos, xMax = WIDTH, xRes = 15, noiseXOffset = 0,
-      noiseScale = 0.02, heightScale = 100, tightness = 0.0, slope = 0,
-      c = p5.color('white')) {
-        this.xPos = xPos - xRes;
-        this.yPos = yPos;
-        this.xMax = xMax;
-        this.xRes = xRes;
-        this.noiseXOffset = noiseXOffset;
-        this.noiseScale = noiseScale;
-        this.heightScale = heightScale;
-        this.tightness = tightness;
-        this.slope = slope;
-        this.color = c;
-
-        this.vertices = [];
-
-        let y = 0;
-
-        for (let i = 0, x = this.xPos; x < xMax + 2 * xRes; i++, x += xRes) {
-          y = p5.noise(noiseXOffset * WIDTH + x * this.noiseScale) *
-          this.heightScale +
-          i * slope;
-
-          // Constrain the mountains to above the horizon
-          if (y > horizon - yPos)
-          y = horizon - yPos;
-
-          this.vertices.push(p5.createVector(x, y));
-        }
-
-        // Adjust the starting height of the mountains if they slope upward, since
-        // they are drawn left-to-right
-        if (this.slope < 0) {
-          this.yPos -= y;
-        }
+    class Ring {
+      constructor(x1, y1, x2, y2, width, c) {
+        this.x1 = x1;
+        this.y1 = y1;
+        this.x2 = x2;
+        this.y2 = y2;
+        // Int
+        this.width = width;
+        this.c = c;
       }
 
       draw() {
         p5.push();
-        p5.noStroke();
-        p5.fill(this.color)
+        p5.noFill();
 
-        p5.curveTightness(this.tightness);
-        p5.translate(this.xPos, this.yPos);
-        p5.beginShape();
-        // Repeat first vertex
-        p5.curveVertex(this.vertices[0].x, this.vertices[0].y);
-        let i = 0;
-        let x = 0, y = 0;
-        for (i = 0; i < this.vertices.length; i++) {
-          x = this.vertices[i].x;
-          y = this.vertices[i].y;
-          p5.curveVertex(x, y);
+        // Glow lines
+        const glowC = this.c
+        glowC.setAlpha(0.1)
+        p5.stroke(glowC)
+        p5.line(this.x1 - 2, this.y1, this.x2 - 2, this.y2);
+        p5.line(this.x1 - 1, this.y1, this.x2 - 1, this.y2);
+        p5.line(this.x1 + this.width, this.y1, this.x2 + this.width, this.y2);
+        p5.line(this.x1 + this.width + 1, this.y1, this.x2 + this.width + 1, this.y2);
+
+        p5.stroke(this.c);
+
+        for (let xOff = 0; xOff < this.width; xOff++)
+          p5.line(this.x1 + xOff, this.y1, this.x2 + xOff, this.y2);
+          p5.pop();
         }
-        // Repeat final vertex
-        p5.curveVertex(x, y);
-        p5.vertex(x, y + HEIGHT);
-        p5.vertex(this.vertices[0].x, y + HEIGHT)
-        p5.vertex(this.vertices[0].x, this.vertices[0].y)
-        p5.vertex(this.vertices[0].x, this.vertices[0].y)
-        p5.endShape();
+
+    }
+
+    class RingGroup {
+      constructor(x1, y1, x2, y2, c, spread, ringArr) {
+        this.x1 = x1;
+        this.y1 = y1;
+        this.x2 = x2;
+        this.y2 = y2;
+        this.c = c;
+        this.spread = spread;
+
+        // Constrain positions to ensure rings overlap the viewing window
+        let randomXAdjustment = p5.random(WIDTH, WIDTH * 1.5);
+
+        while (this.x1 < 0 && this.x2 < 0)
+        this.x2 += randomXAdjustment;
+
+        while (this.x1 > WIDTH && this.x2 > WIDTH)
+        this.x2 -= randomXAdjustment;
+
+        this.shapes = [];
+
+        // Draw lines or rectangles from x1, y1 to x2, y2, plus some x offset
+        for (let n = 0; n < ringArr.length; n++) {
+          let [txnVal, dataPrefix, txnTo] = ringArr[n]
+          // 1000 ETH max end of range
+          let ringW = Math.floor(p5.map(txnVal, 1, txnValueMax, 1, WIDTH * 0.1, true))
+          // If the transaction is an NFT, get a saturated ring color
+          // If not, get white
+          let [ringH, ringS, ringL] = getHSLA(this.c)
+          ringL = p5.random(50, 100)
+          let ringA = p5.random(0.2, 0.5)
+          let ringColor = p5.color(ringH, ringS, ringL, ringA);
+
+          let xOff = Math.floor(p5.randomGaussian(0, spread));
+
+          let ring = new Ring(this.x1 + xOff,
+            this.y1,
+            this.x2 + xOff,
+            this.y2,
+            ringW,
+            ringColor);
+            this.shapes.push(ring);
+          }
+        }
+
+        draw() {
+          this.shapes.forEach(ring => {
+            ring.draw();
+          })
+        }
+    }
+
+    class Mountain {
+      // xPos, yPos (baseline, aligned with horizon),
+      // xMax (x-axis extent of mountain range),
+      // xRes (num pixels between vertices along x-axis),
+      // noiseXOffset (offset for getting different output from Perlin noise
+      //    function - otherwise, subsequent calls will create the same shape - adds
+      //    the specified multiple of canvas width),
+      // noiseScale ("chaos" - try 0.01-0.05 for a start),
+      // heightScale (peak-to-valley height scaler, in pixels),
+      // tightness (curveVertex value -5.0-5.0),
+      // c (color)
+      constructor(horizon, xPos, yPos, xMax = WIDTH, xRes = 15, noiseXOffset = 0,
+        noiseScale = 0.02, heightScale = 100, tightness = 0.0, slope = 0,
+        c = p5.color('white')) {
+          this.xPos = xPos - xRes;
+          this.yPos = yPos;
+          this.xMax = xMax;
+          this.xRes = xRes;
+          this.noiseXOffset = noiseXOffset;
+          this.noiseScale = noiseScale;
+          this.heightScale = heightScale;
+          this.tightness = tightness;
+          this.slope = slope;
+          this.color = c;
+
+          this.vertices = [];
+
+          let y = 0;
+
+          for (let i = 0, x = this.xPos; x < xMax + 2 * xRes; i++, x += xRes) {
+            y = p5.noise(noiseXOffset * WIDTH + x * this.noiseScale) *
+            this.heightScale +
+            i * slope;
+
+            // Constrain the mountains to above the horizon
+            if (y > horizon - yPos)
+            y = horizon - yPos;
+
+            this.vertices.push(p5.createVector(x, y));
+          }
+
+          // Adjust the starting height of the mountains if they slope upward, since
+          // they are drawn left-to-right
+          if (this.slope < 0) {
+            this.yPos -= y;
+          }
+        }
+
+        draw() {
+          p5.push();
+          p5.noStroke();
+          p5.fill(this.color)
+
+          p5.curveTightness(this.tightness);
+          p5.translate(this.xPos, this.yPos);
+          p5.beginShape();
+          // Repeat first vertex
+          p5.curveVertex(this.vertices[0].x, this.vertices[0].y);
+          let i = 0;
+          let x = 0, y = 0;
+          for (i = 0; i < this.vertices.length; i++) {
+            x = this.vertices[i].x;
+            y = this.vertices[i].y;
+            p5.curveVertex(x, y);
+          }
+          // Repeat final vertex
+          p5.curveVertex(x, y);
+          p5.vertex(x, y + HEIGHT);
+          p5.vertex(this.vertices[0].x, y + HEIGHT)
+          p5.vertex(this.vertices[0].x, this.vertices[0].y)
+          p5.vertex(this.vertices[0].x, this.vertices[0].y)
+          p5.endShape();
+          p5.pop();
+        }
+    }
+
+    class CelestialBody {
+      // x center, y center, diameter, color
+      constructor(x, y, d, c) {
+        this.x = x;
+        this.y = y;
+        this.diameter = d;
+        this.color = c;
+      }
+
+      draw() {
+        p5.noStroke();
+        p5.fill(this.color);
+        p5.circle(this.x, this.y, this.diameter);
+      }
+    }
+
+    class BackgroundGradient {
+      // height percent of canvas, color at top, color at bottom
+      constructor(topY, bottomY, topColor, bottomColor, topColorY, bottomColorY) {
+        this.topY = topY;
+        this.bottomY = bottomY;
+        this.topColor = topColor;
+        this.bottomColor = bottomColor;
+        // topColorY and bottomColorY are the ends of the gradient, beyond which
+        // the color will be solid (topColor or bottomColor, respectively)
+        this.topColorY = topColorY;
+        this.bottomColorY = bottomColorY;
+        // this.style = style;
+      }
+
+      draw() {
+        p5.push();
+        p5.colorMode(p5.RGB);
+
+        if (this.topColorY === this.bottomColorY) {
+          p5.noStroke()
+          p5.fill(c)
+          p5.rect(0, this.topY, WIDTH, this.bottomY - this.topY)
+          return
+        }
+        // Top to bottom gradient
+        for (let y = this.topY; y <= this.bottomY; y++) {
+          let inter = p5.map(y, this.topColorY, this.bottomColorY, 0, 1, true);
+          let c = p5.lerpColor(this.topColor, this.bottomColor, inter);;
+          p5.stroke(c);
+          p5.line(0, y, WIDTH, y);
+        }
+
         p5.pop();
       }
-  }
-
-  class CelestialBody {
-    // x center, y center, diameter, color
-    constructor(x, y, d, c) {
-      this.x = x;
-      this.y = y;
-      this.diameter = d;
-      this.color = c;
     }
-
-    draw() {
-      p5.noStroke();
-      p5.fill(this.color);
-      p5.circle(this.x, this.y, this.diameter);
-    }
-  }
-
-  class BackgroundGradient {
-    // height percent of canvas, color at top, color at bottom
-    constructor(topY, bottomY, topColor, bottomColor, topColorY, bottomColorY) {
-      this.topY = topY;
-      this.bottomY = bottomY;
-      this.topColor = topColor;
-      this.bottomColor = bottomColor;
-      // topColorY and bottomColorY are the ends of the gradient, beyond which
-      // the color will be solid (topColor or bottomColor, respectively)
-      this.topColorY = topColorY;
-      this.bottomColorY = bottomColorY;
-      // this.style = style;
-    }
-
-    draw() {
-      p5.push();
-      p5.colorMode(p5.RGB);
-
-      if (this.topColorY === this.bottomColorY) {
-        p5.noStroke()
-        p5.fill(c)
-        p5.rect(0, this.topY, WIDTH, this.bottomY - this.topY)
-        return
-      }
-      // Top to bottom gradient
-      for (let y = this.topY; y <= this.bottomY; y++) {
-        let inter = p5.map(y, this.topColorY, this.bottomColorY, 0, 1, true);
-        let c = p5.lerpColor(this.topColor, this.bottomColor, inter);;
-        p5.stroke(c);
-        p5.line(0, y, WIDTH, y);
-      }
-
-      p5.pop();
-    }
-  }
 
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -346,7 +397,6 @@ const CustomStyle = ({
     let groundTopY = p5.map(groundHeightPct, 0, 1, HEIGHT, 0);
 
     let p5Seed = shuffleBag.current.random()
-    console.log("p5 seed: " + p5Seed);
 
     // Set the global random seed that determines everything
     p5.randomSeed(p5Seed);
@@ -394,11 +444,9 @@ const CustomStyle = ({
     ];
 
     let mod2Idx = Math.floor(mod2 * palettes.length)
-    console.log("paletteIdx: " + mod2Idx)
     mod2Idx = (mod2Idx > palettes.length - 1) ? palettes.length - 1 : mod2Idx
 
     const palette = palettes[mod2Idx];
-    console.log("palette: " + palette.name);
 
     // Switch to HSL to ease color manipulation
     // Toggling this to RGB can create some interesting effects.
@@ -423,7 +471,10 @@ const CustomStyle = ({
     // Random height for the sun:  horizon to top of canvas
     // Sun position depends on ground height
     const [sunH, sunS, sunL] = getHSLA(palette.sun)
-    const sunD = p5.random(WIDTH * 0.5, WIDTH);
+
+    // Sun diameter is proportional to gasUsed/gasLimit
+    const sunD = p5.map(gasUsed, 0, gasLimit, WIDTH * 0.5, WIDTH)
+
     const sunY = p5.random(groundTopY - sunD * 0.4, groundTopY);
     const sunX = p5.random(WIDTH);
     let sunC = p5.color(sunH, Math.max(sunS, 85), 85);
@@ -466,19 +517,18 @@ const CustomStyle = ({
     }
 
     //// RINGS ////
-    let ringColor = p5.color(sunH, skyS, sunL);
+    // Slider to control ring spread manually
     const ringSpread = WIDTH * mod1
-    // Width of entire ring group =  WIDTH * {w | 0.01 < w <= 1}
-    // let groupWidth = random(WIDTH * 0.01, WIDTH * 0.7);
-    const ringN = Math.floor(ringSpread);
+
+    let ringColor = p5.color(sunH, skyS, sunL);
     // Bottom/left coordinates to top/right coordinates
     const rings = new RingGroup(Math.floor(p5.random(-WIDTH * 0.1, WIDTH)),
                                 Math.floor(HEIGHT * 1.1),
                                 Math.floor(p5.random(0, WIDTH * 1.1)),
                                 Math.floor(-HEIGHT * 0.1),
                                 ringColor,
-                                ringN,
-                                ringSpread);
+                                ringSpread,
+                                ringArr)
 
     //// MOUNTAINS ////
     const [mtnH, mtnS, mtnL] = getHSLA(palette.mountain);
