@@ -67,12 +67,24 @@ const CustomStyle = ({
   const ringArr = []
   let txnValueMax = 0
   block.transactions.forEach(txn => {
+    // Get the transaction:
+    // * value
+    // * 4 bytes of the data
+    // * to address
     let txnValue = Number.parseInt(txn.value.hex, 16)
     let txnDataHex = txn.data.slice(0, 10)
-    let txnTo = txn.to.toLowerCase()
+    let txnTo = txn.to;
+
+    if (typeof txnTo === 'string') {
+      txnTo = txnTo.toLowerCase()
+    } else {
+      txnTo = ''
+    }
+
     if (txnValue > 0) {
       ringArr.push([txnValue, txnDataHex, txnTo])
     }
+
     if (txnValue > txnValueMax) {
       txnValueMax = txnValue
     }
