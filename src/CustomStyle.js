@@ -139,6 +139,14 @@ const CustomStyle = ({
     let seed = parseInt(hash.slice(0, 16), 16);
     shuffleBag.current = new MersenneTwister(seed);
 
+    // Set the global random seed that determines everything
+    let p5Seed = shuffleBag.current.random()
+    p5.randomSeed(p5Seed);
+    p5.noiseSeed(p5Seed);
+    // Burn one. The first "random" coming out of this function is always
+    // the same... or too close to the same for my liking
+    p5.random();
+
     // example assignment of hoisted value to be used as NFT attribute later
     hoistedValue.current = 42;
 
@@ -166,14 +174,39 @@ const CustomStyle = ({
       return (NFTPrefixes.has(txnDataPrefix) || NFTMarketAddrs.has(txnTo))
     }
 
+    // Fisher-Yates shuffle algorithm implementation
+    // from https://www.w3docs.com/snippets/javascript/how-to-randomize-shuffle-a-javascript-array.html
+    function shuffleArray(array) {
+      let curId = array.length;
+      // There remain elements to shuffle
+      while (curId !== 0) {
+        // Pick a remaining element
+        let randId = Math.floor(p5.random() * curId)
+        curId -= 1
+        // Swap it with the current element
+        let tmp = array[curId]
+        array[curId] = array[randId]
+        array[randId] = tmp
+      }
+      return array
+    }
 
     // CLASSES /////////////////////////////////////////////////////////////////////
     class Palette {
       constructor(name, c0, c1, c2, c3, c4) {
-        this.colors = p5.shuffle([c0, c1, c2, c3, c4]);
+        this.colors = shuffleArray([c0, c1, c2, c3, c4]);
         this.name = name;
         // Each object uses one of the major palette colors
         // which are shuffled per canvas
+        this.sky = this.colors[0];
+        this.ground = this.colors[1];
+        this.sun = this.colors[2];
+        this.mountain = this.colors[3];
+        this.moon = this.colors[4];
+      }
+
+      reshuffle() {
+        this.colors = shuffleArray(this.colors)
         this.sky = this.colors[0];
         this.ground = this.colors[1];
         this.sun = this.colors[2];
@@ -408,13 +441,6 @@ const CustomStyle = ({
     const groundHeightPct = 0.15;
     let groundTopY = p5.map(groundHeightPct, 0, 1, HEIGHT, 0);
 
-    let p5Seed = shuffleBag.current.random()
-
-    // Set the global random seed that determines everything
-    p5.randomSeed(p5Seed);
-    p5.noiseSeed(p5Seed);
-    p5.random();
-
     //// COLOR PALETTE ////
     // Generate or choose a color palette
     const palettes = [
@@ -455,10 +481,13 @@ const CustomStyle = ({
       //             '#0b2204', '#2b1903', '#3a0d16', '#3e012e', '#2c0255'),
     ];
 
+    // Use the mod2 slider to pick a palette
     let mod2Idx = Math.floor(mod2 * palettes.length)
     mod2Idx = (mod2Idx > palettes.length - 1) ? palettes.length - 1 : mod2Idx
 
-    const palette = palettes[mod2Idx];
+    let palette = palettes[mod2Idx];
+    // Whenever a new palette is selected, reshuffle it
+    palette.reshuffle()
 
     // Switch to HSL to ease color manipulation
     // Toggling this to RGB can create some interesting effects.
