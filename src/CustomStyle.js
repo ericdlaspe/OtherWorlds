@@ -181,7 +181,7 @@ const CustomStyle = ({
       // There remain elements to shuffle
       while (curId !== 0) {
         // Pick a remaining element
-        let randId = Math.floor(p5.random() * curId)
+        let randId = Math.floor(shuffleBag.current.random() * curId)
         curId -= 1
         // Swap it with the current element
         let tmp = array[curId]
