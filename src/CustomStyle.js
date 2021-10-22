@@ -117,7 +117,7 @@ const CustomStyle = ({
         ],
       };
     };
-
+  // End setup()
   };
 
 
@@ -234,14 +234,14 @@ const CustomStyle = ({
         p5.push();
         p5.noFill();
 
-        // Glow lines
-        const glowC = this.c
-        glowC.setAlpha(0.1)
-        p5.stroke(glowC)
-        p5.line(this.x1 - 2, this.y1, this.x2 - 2, this.y2);
-        p5.line(this.x1 - 1, this.y1, this.x2 - 1, this.y2);
-        p5.line(this.x1 + this.width, this.y1, this.x2 + this.width, this.y2);
-        p5.line(this.x1 + this.width + 1, this.y1, this.x2 + this.width + 1, this.y2);
+        // // Glow lines
+        // const glowC = this.c
+        // glowC.setAlpha(0.1)
+        // p5.stroke(glowC)
+        // p5.line(this.x1 - 2, this.y1, this.x2 - 2, this.y2);
+        // p5.line(this.x1 - 1, this.y1, this.x2 - 1, this.y2);
+        // p5.line(this.x1 + this.width, this.y1, this.x2 + this.width, this.y2);
+        // p5.line(this.x1 + this.width + 1, this.y1, this.x2 + this.width + 1, this.y2);
 
         p5.stroke(this.c);
 
@@ -613,6 +613,8 @@ const CustomStyle = ({
     rings.draw();
     mountain1.draw();
     ground.draw();
+
+  // End draw()
   };
 
   return <Sketch setup={setup} draw={draw} windowResized={handleResize} />;
