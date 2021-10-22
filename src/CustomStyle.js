@@ -76,7 +76,13 @@ const CustomStyle = ({
     let txnTo = txn.to;
 
     if (typeof txnTo === 'string') {
-      txnTo = txnTo.toLowerCase()
+      try {
+        txnTo = txnTo.toLowerCase()
+      } catch (error) {
+        console.log(error)
+        console.log('txn:', JSON.stringify(txn))
+        txnTo = ''
+      }
     } else {
       txnTo = ''
     }
