@@ -80,7 +80,7 @@ const CustomStyle = ({
         txnTo = txnTo.toLowerCase()
       } catch (error) {
         console.log(error)
-        console.log('txn:', JSON.stringify(txn))
+        console.log('txn:', txn)
         txnTo = ''
       }
     } else {
