@@ -194,13 +194,16 @@ const CustomStyle = ({
         array[curId] = array[randId]
         array[randId] = tmp
       }
+
       return array
     }
+
 
     // CLASSES /////////////////////////////////////////////////////////////////////
     class Palette {
       constructor(name, c0, c1, c2, c3, c4) {
-        this.colors = shuffleArray([c0, c1, c2, c3, c4]);
+        this.colors = [c0, c1, c2, c3, c4]
+        this.shuffle()
         this.name = name;
         // Each object uses one of the major palette colors
         // which are shuffled per canvas
@@ -211,7 +214,7 @@ const CustomStyle = ({
         this.moon = this.colors[4];
       }
 
-      reshuffle() {
+      shuffle() {
         this.colors = shuffleArray(this.colors)
         this.sky = this.colors[0];
         this.ground = this.colors[1];
@@ -493,7 +496,7 @@ const CustomStyle = ({
 
     let palette = palettes[mod2Idx];
     // Whenever a new palette is selected, reshuffle it
-    palette.reshuffle()
+    palette.shuffle()
 
     // Switch to HSL to ease color manipulation
     // Toggling this to RGB can create some interesting effects.
