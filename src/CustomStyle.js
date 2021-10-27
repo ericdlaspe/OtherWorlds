@@ -359,8 +359,8 @@ const CustomStyle = ({
             i * slope;
 
             // Constrain the mountains to above the horizon
-            if (y > horizon - yPos)
-            y = horizon - yPos;
+            // if (y > horizon - yPos)
+            // y = horizon - yPos;
 
             this.vertices.push(p5.createVector(x, y));
           }
@@ -459,7 +459,7 @@ const CustomStyle = ({
 
     // Map the ground height percentage to a value from
     // the top (0) to the bottom (HEIGHT) of the canvas
-    const groundHeightPct = 0.15;
+    const groundHeightPct = p5.random(0.1, 0.2);
     let groundTopY = p5.map(groundHeightPct, 0, 1, HEIGHT, 0);
 
     //// COLOR PALETTE ////
@@ -598,25 +598,37 @@ const CustomStyle = ({
 
     //// MOUNTAINS ////
     const [mtnH, mtnS, mtnL] = getHSLA(palette.mountain);
-    const mtnC = p5.color(mtnH,
-                          horizonS,
-                          mtnL);
+    let mtnC = p5.color(mtnH,
+                        horizonS,
+                        mtnL);
     const mtnXPos = 0;
     const mtnXMax = WIDTH;
     const mtnXRes = p5.random(10, 30);
-    const mtnNoiseXOffset = 0
     const mtnHeightScale = p5.random(50, 100);
     const mtnNoiseScale = p5.random(0.01, 0.03);
     const mtnTightness = 0.1;
 
-    let mtnSlope = p5.random(-3, 3);
-    let mtnYPos = sky.bottomY - HEIGHT * (0.01 * (mtnSlope ** 2) + 0.10);
 
+    const nMountains = 5
+    const mountains = Array(nMountains)
+
+    for (let i = 0; i < nMountains; i++) {
+      const iMtnL = Math.max(20, mtnL - i * p5.random(5, 10))
+      const mtnC = p5.color(mtnH,
+                          horizonS,
+                          iMtnL);
+      const mtnSlope = p5.random(-3, 3);
+      const mtnYPos = sky.bottomY - HEIGHT * (0.01 * (mtnSlope ** 2) + 0.10)
+                    + (i * HEIGHT * p5.random(0.02, 0.15));
+      mountains[i] = new Mountain(ground.topY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
+                                  i, mtnNoiseScale, mtnHeightScale, mtnTightness,
+                                  mtnSlope, mtnC)
+    }
     // XXX: Make mountains approach lightness (& color?) of sky closer to background
-    const mountain1 = new Mountain(ground.topY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
-                                   mtnNoiseXOffset, mtnNoiseScale,
-                                   mtnHeightScale, mtnTightness, mtnSlope,
-                                   mtnC);
+    // const mountain1 = new Mountain(ground.topY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
+    //                                mtnNoiseXOffset, mtnNoiseScale,
+    //                                mtnHeightScale, mtnTightness, mtnSlope,
+    //                                mtnC);
     // mountain2 = new Mountain(mtnXPos, sky.bottomY - HEIGHT * random(0.2, 0.4),
     //                          WIDTH, 15, 1, 0.01, 100, 0.2,
     //                          mountain2Color);
@@ -636,8 +648,9 @@ const CustomStyle = ({
     });
 
     rings.draw();
-    mountain1.draw();
-    ground.draw();
+    mountains.forEach(mountain => {
+      mountain.draw()
+    })
 
   // End draw()
   };
