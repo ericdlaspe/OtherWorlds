@@ -168,6 +168,18 @@ const CustomStyle = ({
       return false
     }
 
+    function getSunMoonDist(moonX, moonY, moonD, sunX, sunY, sunD) {
+      const centerDist = p5.dist(moonX, moonY, sunX, sunY)
+      const sunRadius = sunD / 2
+
+      // If the center of the moon lies within the sun, emit a constant value
+      if (centerDist < sunRadius)
+        return 0
+
+      // Between 0 and 1 moon diameter outside the sun, emit a value 0 to 1
+      return p5.map(centerDist, sunRadius, sunRadius + moonD, 0, 1, true)
+    }
+
     // Takes the first 4 bytes of transaction's data (the "signature")
     // and determines if it contains an ERC-20 contract
     function isTransactionERC20(txnDataPrefix) {
@@ -542,12 +554,12 @@ const CustomStyle = ({
     //// MOONS ////
     const moonsMax = 4
     const nMoons = Math.floor(mod3 * moonsMax)
-    const moons = []
+    const moons = Array(nMoons)
     let [moonH, moonS, moonL] = getHSLA(palette.moon)
 
     const moonRands = []
     // 4 randoms used for each moon
-    for (let i = 0; i < moonsMax * 4; i++) {
+    for (let i = 0; i < moonsMax; i++) {
       moonRands.push(p5.random(70, moonL))
       moonRands.push(p5.random(WIDTH * 0.02, WIDTH * 0.20))
       moonRands.push(p5.random(WIDTH))
@@ -559,11 +571,15 @@ const CustomStyle = ({
       let moonX = moonRands.pop()
       let moonD = moonRands.pop()
       moonL = moonRands.pop()
-      if (circlesCollide(moonX, moonY, moonD, sunX, sunY, sunD))
-        moonL = 18
+
+      // Darken the moon if it is close to the sun
+      const moonDist = getSunMoonDist(moonX, moonY, moonD, sunX, sunY, sunD)
+      moonL = p5.map(moonDist, 0, 1, 16, moonL, true)
+      // if (circlesCollide(moonX, moonY, moonD, sunX, sunY, sunD))
+      //   moonL = 16
       let moonC = p5.color(moonH, Math.min(moonS, 50), moonL);
 
-      moons.push(new CelestialBody(moonX, moonY, moonD, moonC));
+      moons[i] = new CelestialBody(moonX, moonY, moonD, moonC)
     }
 
     //// RINGS ////
