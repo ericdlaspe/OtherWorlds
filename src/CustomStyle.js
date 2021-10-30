@@ -279,12 +279,6 @@ const CustomStyle = ({
           }
         }
 
-        p5.stroke(this.c);
-
-        for (let xOff = 0; xOff <= this.width; xOff++) {
-          p5.line(this.x1 + xOff, this.y1, this.x2 + xOff, this.y2);
-        }
-
         p5.pop();
       }
     }
