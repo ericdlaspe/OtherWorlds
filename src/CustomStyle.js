@@ -26,6 +26,8 @@ Getting started:
  - check out p5.js documentation for examples!
 */
 
+const DEBUG = true
+
 let DEFAULT_SIZE = 500;
 const CustomStyle = ({
   block,
@@ -410,9 +412,101 @@ const CustomStyle = ({
       }
 
       draw() {
+        p5.push()
         p5.noStroke();
         p5.fill(this.color);
         p5.circle(this.x, this.y, this.diameter);
+        p5.pop()
+      }
+    }
+
+    class Star extends CelestialBody {
+      constructor(x, y, d, c, style) {
+        super(x, y, d, c)
+        this.style = style
+      }
+
+      draw() {
+        p5.push()
+
+        switch(this.style) {
+
+          case 'rings':
+
+            // Draw a filled circle 1/2 the diameter
+            let coreDiameter = this.diameter / 2
+            let weight = coreDiameter * 0.1
+            let c = this.color
+            p5.strokeWeight(weight)
+            p5.stroke(c)
+            p5.fill(c);
+            p5.circle(this.x, this.y, coreDiameter);
+            p5.noFill()
+
+            // Accumulated diameter; starts at core radius
+            let accD = coreDiameter
+
+            if (DEBUG) {
+              p5.push()
+              p5.noFill()
+              p5.stroke('red')
+              p5.strokeWeight(2)
+              p5.line(this.x, this.y - accD/2, this.x + 10, this.y - accD/2)
+              p5.pop()
+            }
+
+            // Now draw stroked circles (no fill) around that core
+            p5.noFill()
+
+            // Track the weight of the stroke and the gap distance so we can
+            // dynamically adjust the spacing and weight of each ring
+            let gap = weight
+            let a = 0.8
+
+            accD += gap + weight / 2
+
+            while (weight > 1) {
+              // Current gap and half of current weight for ring midline
+              accD += gap + weight / 2
+
+              c.setAlpha(a)
+              p5.strokeWeight(weight)
+              p5.stroke(c)
+              p5.circle(this.x, this.y, accD)
+
+              if (DEBUG) {
+                p5.push()
+                p5.noFill()
+                p5.stroke('black')
+                p5.strokeWeight(1)
+                // Line at half diameter (radius)
+                p5.line(this.x, this.y - accD/2, this.x + 10, this.y - accD/2)
+                p5.pop()
+              }
+
+              // Next gap
+              // gap *= 1.15
+              // Next weight
+              weight *= 0.8
+              // Next alpha
+              a *= 0.8
+
+              // New gap and half of new weight to get part way to next midline
+              accD += gap + weight / 2
+            }
+            break
+
+          case 'spikes':
+            break
+
+          case 'haze':
+
+
+          default:
+            super.draw()
+        }
+
+        p5.pop()
       }
     }
 
@@ -540,7 +634,7 @@ const CustomStyle = ({
     const sunY = p5.random(groundTopY - sunD * 0.4, groundTopY);
     const sunX = p5.random(WIDTH);
     let sunC = p5.color(sunH, Math.max(sunS, 85), 85);
-    const sun = new CelestialBody(sunX, sunY, sunD, sunC);
+    const sun = new Star(sunX, sunY, sunD, sunC, 'rings');
 
     //// SKY ////
     const [skyH, skyS, skyL] = getHSLA(palette.sky)
