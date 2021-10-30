@@ -38,7 +38,7 @@ const CustomStyle = ({
   handleResize,
   mod1 = 0.75, // Example: replace any number in the code with mod1, mod2, or color values
   mod2 = 0.25,
-  mod3 = 0.25,
+  // mod3 = 0.25,
   color1 = '#503752',
   background = '#000000',
 }) => {
@@ -146,6 +146,11 @@ const CustomStyle = ({
     // reset shuffle bag
     let seed = parseInt(hash.slice(0, 16), 16);
     shuffleBag.current = new MersenneTwister(seed);
+
+    function blockRand(rangeMin, rangeMax) {
+      const rand = shuffleBag.current.random()
+      return rand * (rangeMax - rangeMin) + rangeMin
+    }
 
     // Set the global random seed that determines everything
     let p5Seed = shuffleBag.current.random()
@@ -257,22 +262,31 @@ const CustomStyle = ({
         p5.push();
         p5.noFill();
 
-        // // Glow lines
-        // const glowC = this.c
-        // glowC.setAlpha(0.1)
-        // p5.stroke(glowC)
-        // p5.line(this.x1 - 2, this.y1, this.x2 - 2, this.y2);
-        // p5.line(this.x1 - 1, this.y1, this.x2 - 1, this.y2);
-        // p5.line(this.x1 + this.width, this.y1, this.x2 + this.width, this.y2);
-        // p5.line(this.x1 + this.width + 1, this.y1, this.x2 + this.width + 1, this.y2);
+        // Glow lines
+        if (blockRand() > 0.5) {
+          const glowWidth = p5.random(2, 10)
+          const glowC = this.c
+
+          for (let i = 1; i < glowWidth; i++) {
+            // Every iteration outward, decrease the alpha by a step
+            let glowA = p5.alpha(glowC)
+            glowA -= glowA / glowWidth
+            glowC.setAlpha(glowA)
+            p5.stroke(glowC)
+
+            p5.line(this.x1 - i, this.y1, this.x2 - i, this.y2);
+            p5.line(this.x1 + this.width + i, this.y1, this.x2 + this.width + i, this.y2);
+          }
+        }
 
         p5.stroke(this.c);
 
-        for (let xOff = 0; xOff < this.width; xOff++)
+        for (let xOff = 0; xOff <= this.width; xOff++) {
           p5.line(this.x1 + xOff, this.y1, this.x2 + xOff, this.y2);
-          p5.pop();
         }
 
+        p5.pop();
+      }
     }
 
     class RingGroup {
@@ -285,7 +299,7 @@ const CustomStyle = ({
         this.spread = spread;
 
         // Constrain positions to ensure rings overlap the viewing window
-        let randomXAdjustment = p5.random(WIDTH, WIDTH * 1.5);
+        let randomXAdjustment = p5.random(WIDTH * 0.5, WIDTH * 1.5);
 
         while (this.x1 < 0 && this.x2 < 0)
         this.x2 += randomXAdjustment;
@@ -300,10 +314,8 @@ const CustomStyle = ({
           let [txnVal, dataPrefix, txnTo] = ringArr[n]
           // 1000 ETH max end of range
           let ringW = Math.floor(p5.map(txnVal, 1, txnValueMax, 1, WIDTH * 0.1, true))
-          // If the transaction is an NFT, get a saturated ring color
-          // If not, get white
           let [ringH, ringS, ringL] = getHSLA(this.c)
-          ringL = p5.random(50, 100)
+          ringL = p5.random(30, 100)
           let ringA = p5.random(0.2, 0.5)
           let ringColor = p5.color(ringH, ringS, ringL, ringA);
 
@@ -356,9 +368,10 @@ const CustomStyle = ({
           let y = 0;
 
           for (let i = 0, x = this.xPos; x < xMax + 2 * xRes; i++, x += xRes) {
-            y = p5.noise(noiseXOffset * WIDTH + x * this.noiseScale) *
-            this.heightScale +
-            i * slope;
+            y = (p5.noise(noiseXOffset * WIDTH + x * this.noiseScale) * this.heightScale +
+                 p5.noise(p5.random() * WIDTH + x * this.noiseScale / 3) * this.heightScale / 2
+                //  p5.noise(p5.random() * WIDTH + x * this.noiseScale * 2) * this.heightScale * 2 +
+                ) + i * slope;
 
             // Constrain the mountains to above the horizon
             // if (y > horizon - yPos)
@@ -553,7 +566,7 @@ const CustomStyle = ({
 
     // Map the ground height percentage to a value from
     // the top (0) to the bottom (HEIGHT) of the canvas
-    const groundHeightPct = p5.random(0.1, 0.2);
+    const groundHeightPct = p5.random(0.1, 0.4);
     let groundTopY = p5.map(groundHeightPct, 0, 1, HEIGHT, 0);
 
     //// COLOR PALETTE ////
@@ -610,18 +623,18 @@ const CustomStyle = ({
     p5.colorMode(p5.HSL);
 
     //// GROUND ////
-    let groundH = p5.hue(palette.ground);
-    let groundS = p5.saturation(palette.ground);
-    let groundL = p5.lightness(palette.ground);
+    // let groundH = p5.hue(palette.ground);
+    // let groundS = p5.saturation(palette.ground);
+    // let groundL = p5.lightness(palette.ground);
     // let groundC = color(groundH, min(30, groundS), random(groundL, 80));
     // Color saturation at horizon
     const horizonS = 20
-    let groundC = p5.color(groundH, horizonS, groundL);
-    // Ground gets lighter in fore - anywhere from original to 80% absolute lightness
-    // We also make the foreground less saturated
-    // let groundCBottom = p5.color(groundH, horizonS + 20, groundL);
-    const ground = new BackgroundGradient(groundTopY, HEIGHT, groundC, groundC,
-                                          groundTopY + 10, HEIGHT - 20);
+    // let groundC = p5.color(groundH, horizonS, groundL);
+    // // Ground gets lighter in fore - anywhere from original to 80% absolute lightness
+    // // We also make the foreground less saturated
+    // // let groundCBottom = p5.color(groundH, horizonS + 20, groundL);
+    // const ground = new BackgroundGradient(groundTopY, HEIGHT, groundC, groundC,
+    //                                       groundTopY + 10, HEIGHT - 20);
 
     //// SUN ////
     // Random height for the sun:  horizon to top of canvas
@@ -638,7 +651,7 @@ const CustomStyle = ({
 
     //// SKY ////
     const [skyH, skyS, skyL] = getHSLA(palette.sky)
-    let skyBottomY = groundTopY - 1;
+    let skyBottomY = HEIGHT;
     // Fade from sky color at top to sun color at horizon
     // Sky bottom color is modified to be slightly darker than the sun
     const skyColorBottom = p5.color(p5.hue(sunC), 100, p5.lightness(sunC) - 5);
@@ -646,8 +659,8 @@ const CustomStyle = ({
                                        0, sunY);
 
     //// MOONS ////
-    const moonsMax = 4
-    const nMoons = Math.floor(mod3 * moonsMax)
+    const moonsMax = 8
+    const nMoons = Math.floor(blockRand(0, moonsMax))
     const moons = Array(nMoons)
     let [moonH, moonS, moonL] = getHSLA(palette.moon)
 
@@ -668,7 +681,7 @@ const CustomStyle = ({
 
       // Darken the moon if it is close to the sun
       const moonDist = getSunMoonDist(moonX, moonY, moonD, sunX, sunY, sunD)
-      moonL = p5.map(moonDist, 0, 1, 16, moonL, true)
+      moonL = p5.map(moonDist, 0, 1, 20, moonL, true)
       // if (circlesCollide(moonX, moonY, moonD, sunX, sunY, sunD))
       //   moonL = 16
       let moonC = p5.color(moonH, Math.min(moonS, 50), moonL);
@@ -681,11 +694,15 @@ const CustomStyle = ({
     const ringSpread = WIDTH * mod1
 
     let ringColor = p5.color(sunH, skyS, sunL);
+    const ringXMin = WIDTH * -0.5
+    const ringXMax = WIDTH * 1.5
+    let ringX1 = Math.floor(blockRand(ringXMin, ringXMax))
+    let ringX2 = Math.floor(blockRand(ringXMin, ringXMax))
     // Bottom/left coordinates to top/right coordinates
-    const rings = new RingGroup(Math.floor(p5.random(-WIDTH * 0.1, WIDTH)),
-                                Math.floor(HEIGHT * 1.1),
-                                Math.floor(p5.random(0, WIDTH * 1.1)),
-                                Math.floor(-HEIGHT * 0.1),
+    const rings = new RingGroup(ringX1,
+                                Math.floor(HEIGHT),
+                                ringX2,
+                                Math.floor(0),
                                 ringColor,
                                 ringSpread,
                                 ringArr)
@@ -697,38 +714,28 @@ const CustomStyle = ({
                         mtnL);
     const mtnXPos = 0;
     const mtnXMax = WIDTH;
-    const mtnXRes = p5.random(10, 30);
-    const mtnHeightScale = p5.random(50, 100);
-    const mtnNoiseScale = p5.random(0.01, 0.03);
-    const mtnTightness = 0.1;
 
 
-    const nMountains = 5
+    // const nMountains = Math.floor(p5.random(1, 10))
+    const nMountains = 10
     const mountains = Array(nMountains)
 
     for (let i = 0; i < nMountains; i++) {
-      const iMtnL = Math.max(20, mtnL - i * p5.random(5, 10))
+      const mtnTightness = 0.1;
+      const mtnXRes = p5.random(10, 30);
+      const mtnHeightScale = p5.random(50, 100);
+      const mtnNoiseScale = p5.random(0.01, 0.03);
+      const iMtnL = Math.max(20, mtnL - i * p5.random(5, 20))
       const mtnC = p5.color(mtnH,
-                          horizonS,
-                          iMtnL);
-      const mtnSlope = p5.random(-3, 3);
-      const mtnYPos = sky.bottomY - HEIGHT * (0.01 * (mtnSlope ** 2) + 0.10)
-                    + (i * HEIGHT * p5.random(0.02, 0.15));
-      mountains[i] = new Mountain(ground.topY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
+                            horizonS,
+                            iMtnL);
+      const mtnSlope = p5.random(-4, 4);
+      const mtnYPos = groundTopY - HEIGHT * (0.01 * (mtnSlope ** 2) + 0.10)
+                    + (i * HEIGHT * 0.05);
+      mountains[i] = new Mountain(groundTopY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
                                   i, mtnNoiseScale, mtnHeightScale, mtnTightness,
                                   mtnSlope, mtnC)
     }
-    // XXX: Make mountains approach lightness (& color?) of sky closer to background
-    // const mountain1 = new Mountain(ground.topY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
-    //                                mtnNoiseXOffset, mtnNoiseScale,
-    //                                mtnHeightScale, mtnTightness, mtnSlope,
-    //                                mtnC);
-    // mountain2 = new Mountain(mtnXPos, sky.bottomY - HEIGHT * random(0.2, 0.4),
-    //                          WIDTH, 15, 1, 0.01, 100, 0.2,
-    //                          mountain2Color);
-    // mountain3 = new Mountain(mtnXPos, sky.bottomY - HEIGHT * random(0.3, 0.4),
-    //                          WIDTH, 15, 2, 0.01, 100, 0.2,
-    //                          mountain3Color);
 
     //// DRAW //////////////////////////////////////////////////////////////////
     // The background is the color of the sky
@@ -762,7 +769,7 @@ const styleMetadata = {
   options: {
     mod1: 0.025,
     mod2: 0.1,
-    mod3: 0.8,
+    // mod3: 0.8,
     color1: '#503752',
     background: '#000000',
   },
