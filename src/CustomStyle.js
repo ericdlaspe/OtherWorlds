@@ -262,15 +262,23 @@ const CustomStyle = ({
         p5.push();
         p5.noFill();
 
+        p5.stroke(this.c);
+
+        for (let xOff = 0; xOff <= this.width; xOff++) {
+          p5.line(this.x1 + xOff, this.y1, this.x2 + xOff, this.y2);
+        }
+
         // Glow lines
-        if (blockRand() > 0.5) {
-          const glowWidth = p5.random(2, 10)
+        if (blockRand(0, 1) > 0.4) {
+          const glowWidth = this.width / 3
           const glowC = this.c
+          let glowA = p5.alpha(glowC)
+          let glowStep = glowA * 0.05
 
           for (let i = 1; i < glowWidth; i++) {
             // Every iteration outward, decrease the alpha by a step
-            let glowA = p5.alpha(glowC)
-            glowA -= glowA / glowWidth
+            glowA -= glowStep
+            glowStep *= 1.1
             glowC.setAlpha(glowA)
             p5.stroke(glowC)
 
