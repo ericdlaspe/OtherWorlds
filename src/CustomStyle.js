@@ -26,7 +26,7 @@ Getting started:
  - check out p5.js documentation for examples!
 */
 
-const DEBUG = true
+const DEBUG = false
 
 let DEFAULT_SIZE = 500;
 const CustomStyle = ({
@@ -455,7 +455,6 @@ const CustomStyle = ({
             p5.stroke(c)
             p5.fill(c);
             p5.circle(this.x, this.y, coreDiameter);
-            p5.noFill()
 
             // Accumulated diameter; starts at core radius
             let accD = coreDiameter
@@ -513,8 +512,27 @@ const CustomStyle = ({
           case 'spikes':
             break
 
-          case 'haze':
+          case 'haze': {
+            // Draw a filled circle 1/2 the diameter
+            const coreDiameter = this.diameter * 0.7
+            let c = this.color
+            p5.noStroke()
+            p5.fill(c);
+            p5.circle(this.x, this.y, coreDiameter);
 
+            p5.noFill()
+            p5.strokeWeight(1)
+            const gradientDist = coreDiameter * 0.5
+            const alphaStep = p5.alpha(c) / gradientDist
+
+            for (let i = 0; i < gradientDist; i++) {
+              p5.stroke(c)
+              p5.circle(this.x, this.y, coreDiameter + i)
+
+              // Next stroke params
+              c.setAlpha(p5.alpha(c) - alphaStep)
+            }
+          } break
 
           default:
             super.draw()
@@ -648,7 +666,17 @@ const CustomStyle = ({
     const sunY = p5.random(groundTopY - sunD * 0.4, groundTopY);
     const sunX = p5.random(WIDTH);
     let sunC = p5.color(sunH, Math.max(sunS, 85), 85);
-    const sun = new Star(sunX, sunY, sunD, sunC, 'rings');
+
+    // Randomly choose the Star style
+    const starStyleRand = shuffleBag.current.random()
+    let starStyle = ''
+    if (starStyleRand < 0.333) {
+      starStyle = 'rings'
+    } else if (starStyleRand < 0.666) {
+      starStyle = 'haze'
+    }
+
+    const sun = new Star(sunX, sunY, sunD, sunC, starStyle);
 
     //// SKY ////
     const [skyH, skyS, skyL] = getHSLA(palette.sky)
@@ -657,6 +685,7 @@ const CustomStyle = ({
     // Sky bottom color is modified to be slightly darker than the sun
     let skyColorBottom = p5.color(p5.hue(sunC), 100, p5.lightness(sunC) - 5);
     let skyColorTop = palette.sky;
+
     // Randomly swap sky color top and bottom
     if (shuffleBag.current.random() > 0.5) {
       // [skyColorTop, skyColorBottom] = [skyColorBottom, skyColorTop]
