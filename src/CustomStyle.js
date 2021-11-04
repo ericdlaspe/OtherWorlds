@@ -446,10 +446,9 @@ const CustomStyle = ({
 
         switch(this.style) {
 
-          case 'rings':
-
+          case 'rings': {
             // Draw a filled circle 1/2 the diameter
-            let coreDiameter = this.diameter / 2
+            const coreDiameter = this.diameter / 2
             let weight = coreDiameter * 0.1
             let c = this.color
             p5.strokeWeight(weight)
@@ -509,7 +508,7 @@ const CustomStyle = ({
               // New gap and half of new weight to get part way to next midline
               accD += gap + weight / 2
             }
-            break
+          } break
 
           case 'spikes':
             break
