@@ -654,10 +654,19 @@ const CustomStyle = ({
     //// SKY ////
     const [skyH, skyS, skyL] = getHSLA(palette.sky)
     let skyBottomY = HEIGHT;
-    // Fade from sky color at top to sun color at horizon
+    // Fade from sky color to sun color
     // Sky bottom color is modified to be slightly darker than the sun
-    const skyColorBottom = p5.color(p5.hue(sunC), 100, p5.lightness(sunC) - 5);
-    const sky = new BackgroundGradient(0, skyBottomY, palette.sky, skyColorBottom,
+    let skyColorBottom = p5.color(p5.hue(sunC), 100, p5.lightness(sunC) - 5);
+    let skyColorTop = palette.sky;
+    // Randomly swap sky color top and bottom
+    if (shuffleBag.current.random() > 0.5) {
+      // [skyColorTop, skyColorBottom] = [skyColorBottom, skyColorTop]
+      let tmpColor = skyColorTop;
+      skyColorTop = skyColorBottom;
+      skyColorBottom = tmpColor;
+    }
+
+    const sky = new BackgroundGradient(0, skyBottomY, skyColorTop, skyColorBottom,
                                        0, sunY);
 
     //// MOONS ////
