@@ -748,32 +748,32 @@ const CustomStyle = ({
 
     //// MOUNTAINS ////
     const [mtnH, mtnS, mtnL] = getHSLA(palette.mountain);
-    let mtnC = p5.color(mtnH,
-                        horizonS,
-                        mtnL);
     const mtnXPos = 0;
     const mtnXMax = WIDTH;
 
-
     // const nMountains = Math.floor(p5.random(1, 10))
-    const nMountains = 10
-    const mountains = Array(nMountains)
+    const nMountains = blockRand(2, 10)
+    const mountains = []
+    const mtnLStart = blockRand(75, 90)
+    const mtnLStep = p5.map(1, nMountains, 0, mtnLStart, 20)
+    let mtnLCurr = mtnL
 
     for (let i = 0; i < nMountains; i++) {
+      let mtnC = p5.color(mtnH,
+                          horizonS,
+                          mtnLCurr);
       const mtnTightness = 0.1;
       const mtnXRes = p5.random(10, 30);
       const mtnHeightScale = p5.random(50, 100);
       const mtnNoiseScale = p5.random(0.01, 0.03);
-      const iMtnL = Math.max(20, mtnL - i * p5.random(5, 20))
-      const mtnC = p5.color(mtnH,
-                            horizonS,
-                            iMtnL);
       const mtnSlope = p5.random(-4, 4);
       const mtnYPos = groundTopY - HEIGHT * (0.01 * (mtnSlope ** 2) + 0.10)
-                    + (i * HEIGHT * 0.05);
-      mountains[i] = new Mountain(groundTopY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
+                      + (i * HEIGHT * 0.05);
+      mountains.push(new Mountain(groundTopY, mtnXPos, mtnYPos, mtnXMax, mtnXRes,
                                   i, mtnNoiseScale, mtnHeightScale, mtnTightness,
-                                  mtnSlope, mtnC)
+                                  mtnSlope, mtnC))
+      // Next mtn params
+      mtnLCurr -= mtnLStep
     }
 
     //// DRAW //////////////////////////////////////////////////////////////////
