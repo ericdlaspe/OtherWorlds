@@ -104,6 +104,9 @@ const CustomStyle = ({
     p5.createCanvas(width, height).parent(canvasParentRef);
     canvasRef.current = p5;
 
+    const density = p5.pixelDensity()
+    p5.pixelDensity(density)
+
     attributesRef.current = () => {
       return {
         // This is called when the final image is generated, when creator opens the Mint NFT modal.
@@ -412,7 +415,7 @@ const CustomStyle = ({
           p5.vertex(this.vertices[0].x, y + HEIGHT)
           p5.vertex(this.vertices[0].x, this.vertices[0].y)
           p5.vertex(this.vertices[0].x, this.vertices[0].y)
-          p5.endShape();
+          p5.endShape(p5.CLOSE);
           p5.pop();
         }
     }
@@ -792,6 +795,48 @@ const CustomStyle = ({
       mountain.draw()
     })
 
+    // XXX: EXPERIMENT ************************
+    p5.push()
+
+    let img = p5.createGraphics(WIDTH, HEIGHT)
+
+    let value = 100
+    let diameter = HEIGHT / 2
+    img.noStroke()
+
+    for (let i = 0; i < 50; i += 1) {
+      img.fill(value)
+      img.circle(WIDTH / 2 + i, HEIGHT / 2 + i, diameter)
+      value *= 0.9
+      diameter -= 8
+    }
+
+
+    let maskImage = p5.createGraphics(WIDTH, HEIGHT)
+    // maskImage.noSmooth()
+    maskImage.circle(WIDTH / 2, HEIGHT / 2, HEIGHT / 2)
+
+    img.textSize(30)
+    img.textAlign(img.CENTER)
+    img.fill('white')
+    img.text("Img pixel density is: " + img.pixelDensity(), WIDTH / 2, HEIGHT / 2 + 40)
+  
+    let imgClone = img.get()
+    imgClone.mask(maskImage.get())
+    p5.image(imgClone, 0, 0)
+
+    // XXX: END EXPERIMENT ************************
+
+
+    p5.textSize(30)
+    p5.textAlign(p5.CENTER)
+    p5.fill('white')
+    p5.text("Canvas pixel density is: " + p5.pixelDensity(), WIDTH / 2, 100)
+
+    p5.pop()
+
+    img.remove()
+    maskImage.remove()
   // End draw()
   };
 
